@@ -1,364 +1,114 @@
-# Chrome Requests Visualizer
+# Trello Agent Context
 
-A Chrome DevTools extension for visualizing network requests, detecting N+1 query patterns, replaying requests, and decoding JWTs. Built for developers who want to debug API calls, identify performance bottlenecks, and inspect authentication tokens.
+A Chrome DevTools extension that watches **Trello-related network traffic** for the inspected tab and builds a **list of cards** with optional **lane (list) filtering** and **one-click export** as Markdown or JSON. It is meant for copying structured card context into other tools while using your normal Trello session in the browser.
 
-<!-- TODO: Add hero screenshot -->
-<img width="1047" height="891" alt="image" src="https://github.com/user-attachments/assets/188e2ed2-dbc5-404d-944b-2eeba9508045" />
+## Requirements
 
+- **Chromium-based browser** (Chrome, Edge, Brave, etc.) with extension support.
+- **DevTools open on the Trello tab** you care about. The panel reads the same network log DevTools uses; it does not inject into the page.
+- You must be **logged into Trello** and load a **board** (and optionally open cards) so the app issues the API calls this extension understands.
 
-## ✨ Features
+## What gets captured
 
-### 🔍 Network Request Monitoring
-Captures XHR, Fetch, and Document requests made by the current page. Unlike the built-in Network tab, this extension focuses specifically on API calls and provides specialized views for debugging.
+Only requests whose URL host is one of:
 
-- **Status indicators** - Color-coded dots show request status at a glance
-- **Search & Filter** - Filter by URL, method (GET, POST, etc.), and sort by time/status
-- **Request count** - See filtered vs total request counts
+- `trello.com` or `*.trello.com`
+- `api.trello.com`
 
-<!-- TODO: Add request list screenshot -->
-<img width="1047" height="891" alt="image" src="https://github.com/user-attachments/assets/8272d2a0-cc9c-4b89-b3db-b67142ad0b68" />
+Everything else is ignored (for example `as.atlassian.com`, analytics, or third-party power-ups).
 
+Resource types: **XHR**, **fetch**, and **document** responses, same as the underlying DevTools hook.
 
-### 🔗 N+1 Query Detection
-Automatically groups requests by URL pattern to identify N+1 query problems:
+## Features
 
-- `/api/users/1`, `/api/users/2`, `/api/users/3` → grouped as `/api/users/:id` (3x)
-- Smart pattern detection for IDs, UUIDs, and MongoDB ObjectIDs
-- Expandable groups to see individual requests
+### Board bulk list (no need to open each card)
 
-<!-- TODO: Add N+1 detection screenshot -->
+When Trello loads the board, it usually fetches a large payload of **visible cards** and **open lists**. The extension parses responses such as:
 
+- `GET /1/board/{shortLinkOrId}?…&cards=visible&lists=open&operationName=quickload:CurrentBoardListsCards`
+- `POST /gateway/api/graphql?operationName=quickload:TrelloCurrentBoardListsCards` (GraphQL shape: flat `lists`/`cards`, nested lists with `cards`, or a bounded deep search for matching objects)
 
-### 🌐 Session Persistence
-Track requests across page navigations within a browsing session:
+Each card is stored with at least **id**, **name**, **idList** (lane), and common fields when present (**shortLink**, **shortUrl**, **desc**, etc.).
 
-- **Domain grouping** - Requests organized by domain (e.g., `github.com`, `api.github.com`)
-- **Page grouping** - Further grouped by page path (`/`, `/repos`, `/settings`)
-- **Copy as JSON** - Export domain or page request summaries
-- **Retention settings** - Configure how long to keep sessions (1 hour to 1 week)
+### Richer data when you open a card
 
-<!-- TODO: Add sessions view screenshot -->
-<img width="1047" height="891" alt="image" src="https://github.com/user-attachments/assets/f6006125-0b02-43a9-b77e-ccf32db21481" />
+Additional responses are merged into the same card record, for example:
 
+- `POST /1/cards/{id}/markAsViewed` — marks which card was last focused in the UI.
+- `GET /1/card/{shortLink}?…&operationName=quickload:PreloadCard` — full card payload (description, attachments, checklist ids, etc.).
+- `GET /1/checklist/{id}?…` — checklist names and items.
+- `GET https://api.trello.com/1/cards/{id}/checklists?…` — checklist bundles from the REST host.
 
-### 🔄 Request Replay
-Replay any captured request with full editing capabilities:
+### Lane filter
 
-- **Edit URL, method, headers, and body** before replaying
-- **Cross-origin support** - Requests proxied through background script
-- **Detailed error reporting** - Clear error messages with suggestions
-- **Response viewer** - See status, headers, and body of replay response
+**Lists** (lanes) come from the board bulk payload. The sidebar **Lane** control filters the card list by `idList`. **All lanes** shows every captured card.
 
-<!-- TODO: Add request replay screenshot -->
-<img width="1203" height="891" alt="image" src="https://github.com/user-attachments/assets/fc094146-b39b-4681-a463-f16b60c09d03" />
+### Export
 
+For the selected card:
 
-### 🔐 JWT Token Decoder
-Automatically detects and decodes JWT tokens in request headers:
+- **Copy Markdown** — human-readable sections (title, link, lane, description, checklists, attachments, image URLs) plus a trailing fenced JSON block.
+- **Copy JSON** — structured object suitable for tools and scripts.
 
-- **Header & Payload** - Decoded and formatted JSON
-- **Expiration status** - Visual indicator for valid/expired tokens
-- **Configurable headers** - Scan `Authorization`, `X-Auth-Token`, or custom headers
+### Storage limits
 
-<!-- TODO: Add JWT decoder screenshot -->
-<img width="1203" height="891" alt="image" src="https://github.com/user-attachments/assets/211ac355-9de9-484f-96a0-cce7112c8b80" />
+The **gear** button opens **Capture storage**: retention window, max rows per URL pattern, and max total rows. Older rows are dropped when limits are exceeded (same storage mechanism as the original request visualizer fork).
 
+## UI overview
 
-### 📋 Copy as JSON
-Export request data for documentation or debugging:
+| Area | Purpose |
+|------|---------|
+| Header | Title, Trello request count, card count, clear capture, storage settings, theme |
+| Lane | Select list to filter cards |
+| Cards | Detected cards (newest activity first); subtitle shows lane name when known |
+| Detail | Fields, checklists, links, Markdown preview, copy actions |
 
-- **Full request details** - URL, method, status, headers, body, response
-- **Truncated for readability** - Large arrays limited to 5 items, strings to 10 lines
-- **Compact headers** - Formatted as `["key: value"]` array
-- **Formatted output** - Pretty-printed JSON ready for Slack/README
-
-
-### ⚙️ Settings
-Customize the extension behavior:
-
-- **Session retention** - 1 hour, 6 hours, 12 hours, 24 hours, 48 hours, 3 days, or 1 week
-- **JWT headers** - Configure which headers to scan for JWT tokens
-- **Theme** - Light, dark, or system preference
-
-<img width="837" height="891" alt="image" src="https://github.com/user-attachments/assets/7018ad4f-d85f-4ed9-8ef6-01b87a797eeb" />
-
-
----
-
-## Installation
+## Installation and development
 
 ```bash
-# Install dependencies
-pnpm install
+npm install
+npm run build
 ```
 
----
+Load **unpacked**:
 
-## Development
+1. Open `chrome://extensions` (or equivalent).
+2. Enable **Developer mode**.
+3. **Load unpacked** → choose the **`dist`** directory produced by the build.
 
-### Building the Extension
+Open the panel:
 
-```bash
-# Development build with watch mode
-pnpm dev
+1. Navigate to a Trello board in a normal tab.
+2. Open **Developer Tools**.
+3. Find the **Trello Agent Context** DevTools panel (created next to Application, Network, etc.).
 
-# Production build
-pnpm build
-```
+After code changes: run `npm run build`, reload the extension on `chrome://extensions`, then **close and reopen DevTools** so the panel picks up the new bundle.
 
-### Loading in Chrome (Development)
+## Project layout (high level)
 
-1. Run `pnpm build` to create the `dist` folder
-2. Open Chrome and navigate to `chrome://extensions`
-3. Enable **"Developer mode"** (toggle in top-right corner)
-4. Click **"Load unpacked"**
-5. Select the `dist` folder from this project
-6. The extension is now installed!
+| Path | Role |
+|------|------|
+| `src/devtools/App.tsx` | Wires capture, settings, and main view |
+| `src/hooks/useNetworkCapture.ts` | DevTools network listener + Trello URL filter |
+| `src/hooks/useTrelloSnapshot.ts` | Applies parsers to new captured requests |
+| `src/lib/trello/parseTrelloRequest.ts` | URL/body → structured events |
+| `src/lib/trello/aggregate.ts` | Merges events into cards, lanes, checklists |
+| `src/lib/trello/isTrelloUrl.ts` | Host allowlist for capture |
+| `src/components/TrelloAppView.tsx` | Card list, lane filter, detail, copy |
+| `src/components/TrelloCaptureSettings.tsx` | Storage limits sheet |
+| `src/manifest.json` | Extension name, description, devtools page |
 
-### Opening the Extension
+## Privacy and security
 
-1. Open any webpage you want to debug
-2. Open Chrome DevTools (`F12` or `Cmd+Option+I` on Mac / `Ctrl+Shift+I` on Windows/Linux)
-3. Look for the **"Requests Visualizer"** tab in the DevTools panel
-4. Start interacting with the page to capture requests
+- Processing is **local** to your browser; the extension does not send captured data to a custom backend.
+- You are still subject to **Trello’s terms** and your workspace policies. This tool only reorganizes responses your browser already received.
+- Exported Markdown/JSON may contain **links or text from cards**; treat exports like any other copy of workspace data.
 
-### Reloading After Code Changes
+## Limitations
 
-After making code changes:
-
-1. Run `pnpm build` (or keep `pnpm dev` running for auto-rebuild)
-2. Go to `chrome://extensions`
-3. Find **"Chrome Requests Visualizer"** in the list
-4. Click the **refresh icon** (circular arrow) on the extension card
-5. **Close and reopen DevTools** to see your changes
-
-> **Tip:** You must close and reopen DevTools for panel changes to take effect. Simply refreshing the page won't update the DevTools panel.
-
-### Debugging the Extension
-
-- **DevTools for DevTools:** Right-click inside the Requests Visualizer panel → "Inspect" to open DevTools for the extension itself
-- **Background script logs:** Go to `chrome://extensions` → Click "Service Worker" link under the extension
-- **Console errors:** Check the DevTools console in both the page and the extension's DevTools
-
----
-
-## Usage Guide
-
-### Requests Tab
-
-| Feature | Description |
-|---------|-------------|
-| **Grouped View** | Groups similar URLs together with count badges (e.g., `3x /api/users/:id`) |
-| **Flat View** | Shows all requests chronologically |
-| **Search** | Filter requests by URL or method |
-| **Method Filter** | Show only GET, POST, PUT, PATCH, DELETE, or OPTIONS |
-| **Sort Options** | Sort by newest, oldest, method, or status |
-| **Request Details** | Click any request to see headers, body, response, and JWT info |
-| **Copy JSON** | Export full request details as formatted JSON |
-| **Replay** | Re-send any request with editable parameters |
-
-### Sessions Tab
-
-| Feature | Description |
-|---------|-------------|
-| **Domain Groups** | Requests organized by domain with total counts |
-| **Page Groups** | Within each domain, grouped by page path |
-| **Expandable** | Click to expand/collapse domains and pages |
-| **Copy Summary** | Export domain or page requests as JSON |
-| **Clear Controls** | Clear individual pages or entire domains |
-
-### Settings Tab
-
-| Setting | Description |
-|---------|-------------|
-| **Session Retention** | How long to keep request history (1 hour to 1 week) |
-| **JWT Headers** | Which headers to scan for JWT tokens |
-| **Theme** | Light, dark, or system preference |
-
----
-
-## Publishing to Chrome Web Store
-
-### Pre-Publish Checklist
-
-1. **Update version** in `package.json`:
-   ```json
-   "version": "1.0.0"
-   ```
-
-2. **Build for production**:
-   ```bash
-   pnpm build
-   ```
-
-3. **Test the production build**:
-   - Load the `dist` folder as unpacked extension
-   - Verify all features work correctly
-   - Check for console errors
-
-4. **Create ZIP file**:
-   ```bash
-   cd dist
-   zip -r ../request-visualizer.zip .
-   ```
-
-5. **Prepare store assets**:
-   - Icon: 128x128 PNG (already in `public/icon/128.png`)
-   - Screenshots: 1280x800 or 640x400 PNG/JPEG
-   - Promotional images (optional): 440x280 small, 920x680 large
-
-### Publishing Steps
-
-1. Go to [Chrome Web Store Developer Dashboard](https://chrome.google.com/webstore/devconsole)
-2. Pay one-time $5 developer registration fee (if not already registered)
-3. Click **"New Item"**
-4. Upload `request-visualizer.zip`
-5. Fill in store listing:
-   - **Name:** Chrome Requests Visualizer
-   - **Summary:** Visualize network requests, detect N+1 patterns, decode JWTs
-   - **Description:** Full description of features
-   - **Category:** Developer Tools
-   - **Language:** English
-6. Upload screenshots and icons
-7. Set **visibility** (Public/Unlisted)
-8. Submit for review (usually takes 1-3 business days)
-
-### Updating Published Extension
-
-1. Increment version in `package.json`
-2. Run `pnpm build`
-3. Create new ZIP from `dist` folder
-4. Go to Developer Dashboard → Your extension → "Package" tab
-5. Upload new ZIP
-6. Submit for review
-
----
-
-## Tech Stack
-
-### TanStack DB
-
-This extension uses [TanStack DB](https://tanstack.com/db) for reactive client-side data management. Here are the key patterns we use:
-
-#### Collection Definition
-
-```typescript
-import { createCollection, createLocalStoragePersister } from "@tanstack/db";
-
-// Define schema
-const requestsSchema = {
-  id: "string",
-  url: "string",
-  method: "string",
-  status: "number",
-  startTime: "number",
-  // ...
-} as const;
-
-// Create collection with persistence
-export const requestsCollection = createCollection({
-  id: "requests",
-  schema: requestsSchema,
-  persister: createLocalStoragePersister({ name: "requests-db" }),
-});
-```
-
-#### Live Queries with Filtering
-
-```typescript
-import { useLiveQuery } from "@tanstack/react-db";
-import { eq, ilike, or } from "@tanstack/db";
-
-// Reactive filtered query - re-executes when dependencies change
-const filteredResult = useLiveQuery(
-  (q) => {
-    let query = q.from({ req: requestsCollection });
-
-    // Method filter - eq() for equality
-    if (filters.method !== "ALL") {
-      query = query.where(({ req }) => eq(req.method, filters.method));
-    }
-
-    // Search filter - ilike() for case-insensitive pattern matching
-    if (filters.search) {
-      query = query.where(({ req }) => 
-        or(
-          ilike(req.url, `%${filters.search}%`),
-          ilike(req.method, `%${filters.search}%`)
-        )
-      );
-    }
-
-    // Sorting
-    return query.orderBy(({ req }) => req.startTime, "desc");
-  },
-  [filters.method, filters.search] // Dependencies trigger re-execution
-);
-```
-
-#### Direct Writes
-
-```typescript
-// Insert
-requestsCollection.utils.writeInsert(newRequest);
-
-// Delete
-requestsCollection.utils.writeDelete(requestId);
-
-// Update
-requestsCollection.utils.writeUpdate(requestId, { status: 200 });
-```
-
-#### Available Operators
-
-```typescript
-import { eq, gt, gte, lt, lte, like, ilike, inArray, and, or, not } from "@tanstack/db";
-
-// Equality
-eq(req.id, 1)
-
-// Comparisons
-gt(req.status, 200)   // greater than
-gte(req.status, 200)  // greater than or equal
-lt(req.status, 400)   // less than
-lte(req.status, 400)  // less than or equal
-
-// String matching
-like(req.url, "/api/%")   // case-sensitive pattern
-ilike(req.url, "/api/%")  // case-insensitive pattern
-
-// Array membership
-inArray(req.method, ["GET", "POST"])
-
-// Logical operators
-and(condition1, condition2)
-or(condition1, condition2)
-not(condition)
-```
-
-#### Conditional Query Building
-
-```typescript
-// Chain .where() calls conditionally - each adds an AND condition
-const result = useLiveQuery(
-  (q) => {
-    let query = q.from({ req: requestsCollection });
-
-    if (showActive) {
-      query = query.where(({ req }) => eq(req.active, true));
-    }
-
-    if (minStatus) {
-      query = query.where(({ req }) => gte(req.status, minStatus));
-    }
-
-    return query.orderBy(({ req }) => req.startTime, "desc");
-  },
-  [showActive, minStatus]
-);
-```
-
----
+- If the **board bulk** request was **garbage-collected** or never fired (e.g. narrow retention), the card list may only contain cards you **opened** or touched.
+- **Checklist item text** from the board bulk request may be minimal depending on Trello’s `card_checklist_checkItems` settings on that call; opening the card often loads full checklist rows.
+- **Atlassian batch** endpoints (`as.atlassian.com/api/v1/batch`) are **not** on the Trello host allowlist and are not used.
 
 ## License
 
