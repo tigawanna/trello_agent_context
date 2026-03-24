@@ -14,6 +14,8 @@ import { useTheme } from "next-themes";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 const LANE_FILTER_ALL = "__lane_all__";
+const COPY_CARD_LIMITS = [10, 20, 40, 60, 100] as const;
+type CopyCardLimit = (typeof COPY_CARD_LIMITS)[number];
 
 interface TrelloAppViewProps {
   trelloState: TrelloAggregateState;
@@ -39,6 +41,7 @@ export function TrelloAppView({
   );
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [copyHint, setCopyHint] = useState<string | null>(null);
+  const [copyCardLimit, setCopyCardLimit] = useState<CopyCardLimit>(10);
 
   useEffect(() => {
     if (laneFilter !== LANE_FILTER_ALL && !laneOptions.some((l) => l.id === laneFilter)) {
@@ -73,6 +76,17 @@ export function TrelloAppView({
     [selectedExport]
   );
 
+  const bulkMarkdown = useMemo(() => {
+    if (rows.length === 0) return "";
+    const n = Math.min(copyCardLimit, rows.length);
+    const parts: string[] = [];
+    for (let i = 0; i < n; i++) {
+      const exp = buildCardExport(trelloState, rows[i].id);
+      parts.push(formatTrelloMarkdown(exp));
+    }
+    return parts.join("\n\n---\n\n");
+  }, [rows, trelloState, copyCardLimit]);
+
   const runCopy = useCallback(async (text: string, label: string) => {
     const ok = await copyToClipboard(text);
     setCopyHint(ok ? `${label} copied` : "Copy failed");
@@ -97,6 +111,7 @@ export function TrelloAppView({
             {captureCount} Trello requests · {rows.length} card{rows.length === 1 ? "" : "s"}
             {!onTrelloPage ? " · inspect a Trello tab" : ""}
           </p>
+          {copyHint ? <p className="text-[11px] text-muted-foreground truncate">{copyHint}</p> : null}
         </div>
         <div className="flex items-center gap-0.5 shrink-0">
           <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={onClearCapture} title="Clear capture">
@@ -137,6 +152,34 @@ export function TrelloAppView({
               </SelectContent>
             </Select>
             <div className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Cards</div>
+            <div className="flex flex-col gap-2">
+              <div className="text-[10px] text-muted-foreground">Copy up to (list order)</div>
+              <Select
+                value={String(copyCardLimit)}
+                onValueChange={(v) => setCopyCardLimit(Number(v) as CopyCardLimit)}
+              >
+                <SelectTrigger size="sm" className="w-full h-8 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {COPY_CARD_LIMITS.map((lim) => (
+                    <SelectItem key={lim} value={String(lim)}>
+                      First {lim}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button
+                size="sm"
+                variant="secondary"
+                className="h-8 text-xs w-full"
+                disabled={!bulkMarkdown}
+                onClick={() => runCopy(bulkMarkdown, "All cards (Markdown)")}
+              >
+                <Clipboard className="w-3.5 h-3.5 shrink-0 mr-1" />
+                Copy all
+              </Button>
+            </div>
           </div>
           <ScrollArea className="flex-1 min-h-0">
             {rows.length === 0 ? (
@@ -202,7 +245,6 @@ export function TrelloAppView({
                   <FileJson className="w-3.5 h-3.5 mr-1" />
                   Copy JSON
                 </Button>
-                {copyHint ? <span className="text-[11px] text-muted-foreground">{copyHint}</span> : null}
               </div>
               <ScrollArea className="flex-1 min-h-0">
                 <div className="p-3 space-y-3 text-sm max-w-3xl">
