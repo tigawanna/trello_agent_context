@@ -2,6 +2,8 @@
 
 A Chrome DevTools extension that watches **Trello-related network traffic** for the inspected tab and builds a **list of cards** with optional **lane (list) filtering** and **one-click export** as Markdown or JSON. It is meant for copying structured card context into other tools while using your normal Trello session in the browser.
 
+[screenshot](image.png)
+
 ## Requirements
 
 - **Chromium-based browser** (Chrome, Edge, Brave, etc.) with extension support.
