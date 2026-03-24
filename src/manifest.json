@@ -1,0 +1,20 @@
+{
+  "name": "Trello Agent Context",
+  "description": "DevTools: Trello card snapshot from inspected tab traffic - title, desc, checklists, attachments; copy Markdown/JSON.",
+  "{{chrome}}.manifest_version": 3,
+  "{{firefox}}.manifest_version": 2,
+  "icons": {
+    "16": "icon/16.png",
+    "32": "icon/32.png",
+    "48": "icon/48.png",
+    "96": "icon/96.png",
+    "128": "icon/128.png"
+  },
+  "devtools_page": "src/devtools/devtools.html",
+  "{{chrome}}.host_permissions": ["<all_urls>"],
+  "{{firefox}}.permissions": ["<all_urls>"],
+  "background": {
+    "{{chrome}}.service_worker": "src/background.ts",
+    "{{firefox}}.scripts": ["src/background.ts"]
+  }
+}
