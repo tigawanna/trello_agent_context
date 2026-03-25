@@ -11,8 +11,14 @@
     "128": "icon/128.png"
   },
   "devtools_page": "src/devtools/devtools.html",
-  "{{chrome}}.host_permissions": ["<all_urls>"],
-  "{{firefox}}.permissions": ["<all_urls>"],
+  "{{chrome}}.host_permissions": [
+    "*://trello.com/*",
+    "*://*.trello.com/*"
+  ],
+  "{{firefox}}.permissions": [
+    "*://trello.com/*",
+    "*://*.trello.com/*"
+  ],
   "background": {
     "{{chrome}}.service_worker": "src/background.ts",
     "{{firefox}}.scripts": ["src/background.ts"]

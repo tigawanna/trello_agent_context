@@ -13,84 +13,51 @@
 </head>
 <body>
     <h1>Privacy Policy for Trello Agent Context</h1>
-    <p class="last-updated">Last updated: January 02, 2026</p>
-    
+    <p class="last-updated">Last updated: March 24, 2026</p>
+
     <div class="important">
-        <strong>Important Notice:</strong> This extension does NOT collect, transmit, or store any personal data. 
-        All processing happens locally on your device. No data leaves your browser.
+        <strong>Summary:</strong> Trello Agent Context does not send your Trello data, captured traffic, or exports to servers operated by the extension authors. Processing happens in your browser. Optional features may store settings on your device or repeat network requests you explicitly choose, as described below.
     </div>
-    
-    <h2>1. Overview</h2>
-    <p>Trello Agent Context is a developer tool extension that runs in Chrome DevTools. It reads network activity for the inspected tab to list requests and, on Trello pages, aggregate card fields you already loaded in the browser (for local copy/export). 
-    This privacy policy explains our complete lack of remote data collection in compliance with GDPR and other privacy regulations.</p>
-    
-    <h2>2. Data Collection - NONE</h2>
-    <p>We do NOT collect any personal data. We do NOT collect any usage data. We do NOT collect any analytics.</p>
-    <p>The extension operates entirely locally on your device and does not:</p>
+
+    <h2>1. What this extension is</h2>
+    <p>Trello Agent Context is a Chromium extension that adds a <strong>Chrome DevTools</strong> panel. When DevTools is open on a tab, the extension observes that tab&rsquo;s network activity (via DevTools APIs), keeps responses whose URLs match an allowlist of Trello-related hosts, parses them locally, and helps you view and copy structured card information as Markdown or JSON. It is intended for people who already use Trello in the browser with their normal login.</p>
+
+    <h2>2. Data the extension authors do not collect</h2>
+    <p>The publishers of this extension do <strong>not</strong> operate a backend for this tool and do <strong>not</strong> receive:</p>
     <ul>
-        <li>Collect personal information</li>
-        <li>Collect usage statistics</li>
-        <li>Use cookies or tracking technologies</li>
-        <li>Transmit data to external servers</li>
-        <li>Store data outside your browser</li>
+        <li>Your Trello card content, board data, or exports</li>
+        <li>Analytics, crash reports, or usage telemetry from the extension</li>
+        <li>Your passwords or session tokens sent to us</li>
     </ul>
-    
-    <h2>3. Local Processing Only</h2>
-    <p>All extension functionality occurs locally within your browser:</p>
+    <p>There is no account sign-up for the extension and no remote &ldquo;phone home&rdquo; for captured data.</p>
+
+    <h2>3. What happens on your device</h2>
     <ul>
-        <li>Network request capture and Trello card aggregation process data in memory in DevTools</li>
-        <li>Any preferences are stored locally using Chrome's storage API</li>
-        <li>No external API calls or server communications</li>
-        <li>No data sharing with third parties</li>
+        <li><strong>Network capture:</strong> Matching request and response data are processed in memory inside the DevTools panel while you use it. Retention limits you configure in the panel apply to that local capture (older entries may be discarded).</li>
+        <li><strong>Settings:</strong> Preferences such as theme, retention limits, and related options are stored locally in your browser (for example via IndexedDB and local storage APIs exposed to extension pages).</li>
+        <li><strong>Clipboard:</strong> When you use copy or export actions, the browser places content on your clipboard or in a download flow you control. That is standard browser behavior and is not sent to the extension authors.</li>
     </ul>
-    
-    <h2>4. Required Permissions Explained</h2>
-    <p>The extension requires Chrome permissions solely for local functionality:</p>
+
+    <h2>4. Optional request replay</h2>
+    <p>If you use a feature that re-runs a captured HTTP request, the extension&rsquo;s background context may issue a <code>fetch</code> to the Trello URL you selected (only <code>trello.com</code> and <code>*.trello.com</code>, including <code>api.trello.com</code>). That uses your browser&rsquo;s normal rules for that origin (such as cookies where the browser allows). Those requests are between <strong>your browser and Trello</strong>, not to servers run by the extension authors.</p>
+
+    <h2>5. Permissions (as declared in the extension manifest)</h2>
     <ul>
-        <li><strong>"tabs"</strong>: To identify active tabs for request monitoring</li>
-        <li><strong>Host access</strong>: Lets DevTools read responses for the inspected page; data stays local to your machine</li>
-        <li><strong>"activeTab"</strong>: To interact with the current webpage</li>
+        <li><strong>DevTools page:</strong> Registers the &ldquo;Trello Agent Context&rdquo; panel next to other DevTools tools.</li>
+        <li><strong>Host permissions (<code>trello.com</code> and <code>*.trello.com</code>):</strong> Declared so the background script can perform the optional replay <code>fetch</code> only to those Trello origins, matching the same hosts the extension uses for capture. The extension does not use this to upload captured data to the authors.</li>
+        <li><strong>Background service worker:</strong> Handles extension messaging needed for optional replay and standard extension lifecycle events.</li>
     </ul>
-    <p>These permissions DO NOT grant the ability to transmit data externally.</p>
-    
-    <h2>5. GDPR Compliance</h2>
-    <p>Under GDPR, you have the following rights. Since we collect no data:</p>
-    <ul>
-        <li><strong>Right to Access:</strong> We have no data to provide access to</li>
-        <li><strong>Right to Erasure:</strong> We have no data to erase</li>
-        <li><strong>Right to Rectification:</strong> We have no data to correct</li>
-        <li><strong>Right to Restrict Processing:</strong> We perform no processing</li>
-        <li><strong>Right to Data Portability:</strong> We have no data to port</li>
-        <li><strong>Right to Object:</strong> We perform no processing to object to</li>
-    </ul>
-    
-    <h2>6. Data Storage</h2>
-    <p>Any user preferences (theme settings, layout choices) are stored exclusively in your browser using Chrome's local storage API. 
-    This data remains on your device and can be cleared at any time by:</p>
-    <ul>
-        <li>Clearing browser data for the extension</li>
-        <li>Uninstalling the extension</li>
-    </ul>
-    
-    <h2>7. Third-Party Services</h2>
-    <p>This extension does not integrate with any third-party services, APIs, or external platforms.</p>
-    
-    <h2>8. Children's Privacy</h2>
-    <p>Since we collect no data, we do not knowingly collect information from children or anyone else.</p>
-    
-    <h2>9. Changes to This Privacy Policy</h2>
-    <p>We may update this privacy policy. The "Last updated" date at the top will reflect changes. 
-    Since we collect no data, changes will only clarify our non-collection practices.</p>
-    
-    <h2>10. Contact Information</h2>
-    <p>For questions about this privacy policy or the extension:</p>
-    <ul>
-        <li>Repository or support channel listed with your distribution of this extension</li>
-        <li>Email: denniskinuthiawaweru@gmail.com</li>
-    </ul>
-    
-    <h2>11. Data Protection Officer</h2>
-    <p>Since we do not process personal data, no formal Data Protection Officer is required under GDPR Article 37. 
-    For any privacy concerns, contact the developer at the email above.</p>
+
+    <h2>6. Third-party services you already use</h2>
+    <p>When you load Trello in a tab, <strong>Trello and Atlassian</strong> (and their infrastructure) handle authentication and API responses under their own terms and privacy policies. This extension only reads responses the page flow already triggered, and does not replace or bypass Trello&rsquo;s own controls.</p>
+
+    <h2>7. Children&rsquo;s privacy</h2>
+    <p>The extension is not directed at children. It does not knowingly collect personal information for the authors. Parents and organizations remain responsible for how minors use Trello and the browser.</p>
+
+    <h2>8. Changes</h2>
+    <p>This policy may be updated when behavior or permissions change. The &ldquo;Last updated&rdquo; date at the top will be revised accordingly.</p>
+
+    <h2>9. Contact</h2>
+    <p>Questions about this policy or the extension: use the repository or support channel distributed with the extension, or email <a href="mailto:denniskinuthiawaweru@gmail.com">denniskinuthiawaweru@gmail.com</a>.</p>
 </body>
 </html>
