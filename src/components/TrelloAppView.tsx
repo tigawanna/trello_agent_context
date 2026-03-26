@@ -1,17 +1,18 @@
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { useCardSearch } from "@/hooks/common/useCardSearch";
 import { copyToClipboard } from "@/lib/clipboard";
 import {
   buildCardExport,
   formatTrelloMarkdown,
-  listDetectedCards,
   listLanesSorted,
 } from "@/lib/trello/aggregate";
 import type { TrelloAggregateState } from "@/types/trello";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Clipboard, FileJson, Moon, Monitor, Settings, Sun, Trash2 } from "lucide-react";
+import { Clipboard, FileJson, Moon, Monitor, Search, Settings, Sun, Trash2, X } from "lucide-react";
 import { useTheme } from "next-themes";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 const LANE_FILTER_ALL = "__lane_all__";
 const COPY_CARD_LIMITS = [10, 20, 40, 60, 100] as const;
@@ -35,10 +36,12 @@ export function TrelloAppView({
   const { theme, setTheme } = useTheme();
   const [laneFilter, setLaneFilter] = useState<string>(LANE_FILTER_ALL);
   const laneOptions = useMemo(() => listLanesSorted(trelloState), [trelloState]);
-  const rows = useMemo(
-    () => listDetectedCards(trelloState, laneFilter === LANE_FILTER_ALL ? null : laneFilter),
-    [trelloState, laneFilter]
+  const activeLaneId = laneFilter === LANE_FILTER_ALL ? null : laneFilter;
+  const { query: searchQuery, setQuery: setSearchQuery, filteredRows: rows } = useCardSearch(
+    trelloState,
+    activeLaneId
   );
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [copyHint, setCopyHint] = useState<string | null>(null);
   const [copyCardLimit, setCopyCardLimit] = useState<CopyCardLimit>(10);
@@ -136,29 +139,48 @@ export function TrelloAppView({
 
       <div className="flex flex-1 min-h-0 divide-x divide-border">
         <div className="w-[min(100%,260px)] sm:w-[300px] flex flex-col min-h-0 shrink-0 bg-muted/20">
-          <div className="px-2 py-2 space-y-2 border-b border-border">
-            <div className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Lane</div>
-            <Select value={laneFilter} onValueChange={setLaneFilter}>
-              <SelectTrigger size="sm" className="w-full h-8 text-xs">
-                <SelectValue placeholder="All lanes" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={LANE_FILTER_ALL}>All lanes</SelectItem>
-                {laneOptions.map((l) => (
-                  <SelectItem key={l.id} value={l.id}>
-                    {l.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <div className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Cards</div>
-            <div className="flex flex-col gap-2">
-              <div className="text-[10px] text-muted-foreground">Copy up to (list order)</div>
+          <div className="px-2 py-1.5 space-y-1.5 border-b border-border">
+            <div className="relative">
+              <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
+              <Input
+                ref={searchInputRef}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Filter cards…"
+                className="h-7 text-xs pl-7 pr-7"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchQuery("");
+                    searchInputRef.current?.focus();
+                  }}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+            <div className="flex items-center gap-1.5">
+              <Select value={laneFilter} onValueChange={setLaneFilter}>
+                <SelectTrigger size="sm" className="h-7 text-[11px] flex-1 min-w-0">
+                  <SelectValue placeholder="All lanes" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={LANE_FILTER_ALL}>All lanes</SelectItem>
+                  {laneOptions.map((l) => (
+                    <SelectItem key={l.id} value={l.id}>
+                      {l.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <Select
                 value={String(copyCardLimit)}
                 onValueChange={(v) => setCopyCardLimit(Number(v) as CopyCardLimit)}
               >
-                <SelectTrigger size="sm" className="w-full h-8 text-xs">
+                <SelectTrigger size="sm" className="h-7 text-[11px] w-[72px] shrink-0">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -172,23 +194,29 @@ export function TrelloAppView({
               <Button
                 size="sm"
                 variant="secondary"
-                className="h-8 text-xs w-full"
+                className="h-7 text-[11px] px-2 shrink-0"
                 disabled={!bulkMarkdown}
                 onClick={() => runCopy(bulkMarkdown, "All cards (Markdown)")}
+                title="Copy cards as Markdown"
               >
-                <Clipboard className="w-3.5 h-3.5 shrink-0 mr-1" />
-                Copy all
+                <Clipboard className="w-3 h-3" />
               </Button>
             </div>
           </div>
           <ScrollArea className="flex-1 min-h-0">
             {rows.length === 0 ? (
               <div className="p-3 text-xs text-muted-foreground space-y-2">
-                <p>No cards match this filter. On a board tab, Trello loads a bulk board request (visible cards + lists) automatically.</p>
-                <ul className="list-disc pl-4 space-y-1">
-                  <li>Reload the board or switch lists to capture it</li>
-                  <li>Open a card for full description and checklists</li>
-                </ul>
+                {searchQuery ? (
+                  <p>No cards match &ldquo;{searchQuery}&rdquo;. Try a different search term or clear the filter.</p>
+                ) : (
+                  <>
+                    <p>No cards match this filter. On a board tab, Trello loads a bulk board request (visible cards + lists) automatically.</p>
+                    <ul className="list-disc pl-4 space-y-1">
+                      <li>Reload the board or switch lists to capture it</li>
+                      <li>Open a card for full description and checklists</li>
+                    </ul>
+                  </>
+                )}
               </div>
             ) : (
               <ul className="p-1">

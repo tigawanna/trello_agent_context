@@ -216,11 +216,34 @@ export function listLanesSorted(state: TrelloAggregateState): TrelloLane[] {
   return Object.values(state.lanes).sort((a, b) => a.pos - b.pos || a.name.localeCompare(b.name));
 }
 
-export function listDetectedCards(state: TrelloAggregateState, laneId: string | null): TrelloDetectedCardRow[] {
+function matchesSearch(
+  fields: TrelloCardFields,
+  lanes: Record<string, TrelloLane>,
+  query: string
+): boolean {
+  const q = query.toLowerCase();
+  if (fields.name?.toLowerCase().includes(q)) return true;
+  if (fields.desc?.toLowerCase().includes(q)) return true;
+  if (fields.shortLink?.toLowerCase().includes(q)) return true;
+  if (fields.id.toLowerCase().includes(q)) return true;
+  if (fields.idList) {
+    const lane = lanes[fields.idList];
+    if (lane?.name.toLowerCase().includes(q)) return true;
+  }
+  return false;
+}
+
+export function listDetectedCards(
+  state: TrelloAggregateState,
+  laneId: string | null,
+  searchQuery?: string
+): TrelloDetectedCardRow[] {
   const rows: TrelloDetectedCardRow[] = [];
+  const normalizedQuery = searchQuery?.trim() ?? "";
   for (const id of Object.keys(state.cards)) {
     const fields = state.cards[id];
     if (laneId && fields.idList !== laneId) continue;
+    if (normalizedQuery && !matchesSearch(fields, state.lanes, normalizedQuery)) continue;
     rows.push({
       id,
       lastSeen: state.cardLastSeen[id] ?? 0,
