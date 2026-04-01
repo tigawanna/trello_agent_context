@@ -11,13 +11,15 @@
     "128": "icon/128.png"
   },
   "devtools_page": "src/devtools/devtools.html",
+  "permissions": ["downloads"],
   "{{chrome}}.host_permissions": [
     "*://trello.com/*",
     "*://*.trello.com/*"
   ],
   "{{firefox}}.permissions": [
     "*://trello.com/*",
-    "*://*.trello.com/*"
+    "*://*.trello.com/*",
+    "downloads"
   ],
   "background": {
     "{{chrome}}.service_worker": "src/background.ts",

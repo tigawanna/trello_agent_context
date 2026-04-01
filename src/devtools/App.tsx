@@ -2,6 +2,7 @@ import { TrelloAppView } from "@/components/TrelloAppView";
 import { TrelloCaptureSettings } from "@/components/TrelloCaptureSettings";
 import { DEFAULT_SETTINGS, getSettings, updateSettings } from "@/db/settings";
 import { useNetworkCapture } from "@/hooks/useNetworkCapture";
+import { useTrelloAuth } from "@/hooks/useTrelloAuth";
 import { useTrelloSnapshot } from "@/hooks/useTrelloSnapshot";
 import { garbageCollectRequests, updateGCConfig, useRequestStore } from "@/lib/tanstackdb";
 import { useEffect, useState } from "react";
@@ -14,6 +15,7 @@ export default function App() {
 
   const { requests, addRequest, onNavigate, clearRequests, cleanupOldSessions, currentPageUrl } = useRequestStore();
   const trelloState = useTrelloSnapshot(requests);
+  const trelloAuth = useTrelloAuth(requests);
 
   useNetworkCapture(addRequest, onNavigate);
 
@@ -60,6 +62,7 @@ export default function App() {
         trelloState={trelloState}
         captureCount={requests.length}
         inspectedPageUrl={currentPageUrl}
+        trelloAuth={trelloAuth}
         onClearCapture={clearRequests}
         onOpenSettings={() => setSettingsOpen(true)}
       />

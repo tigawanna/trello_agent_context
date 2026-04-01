@@ -6,6 +6,7 @@ import type {
   TrelloDetectedCardRow,
   TrelloLane,
 } from "@/types/trello";
+import type { EmbeddedImage, SavedImage, TrelloAuthInfo } from "@/types/trelloAuth";
 
 const initial: TrelloAggregateState = {
   cards: {},
@@ -254,7 +255,24 @@ export function listDetectedCards(
   return rows;
 }
 
-export function formatTrelloMarkdown(exp: TrelloCardExport): string {
+function fileNameToCaption(fileName: string): string {
+  const withoutExt = fileName.replace(/\.[^.]+$/, "");
+  const decoded = decodeURIComponent(withoutExt);
+  return decoded
+    .replace(/[-_]+/g, " ")
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+export interface FormatMarkdownOptions {
+  auth?: TrelloAuthInfo | null;
+  embeddedImages?: Map<string, EmbeddedImage>;
+  savedImages?: Map<string, SavedImage>;
+}
+
+export function formatTrelloMarkdown(exp: TrelloCardExport, options?: FormatMarkdownOptions): string {
+  const { auth, embeddedImages, savedImages } = options ?? {};
   const lines: string[] = [];
   const title = exp.name?.trim() || "Trello card";
   lines.push(`# ${title}`);
@@ -285,13 +303,59 @@ export function formatTrelloMarkdown(exp: TrelloCardExport): string {
       lines.push(`- [${a.name}](${a.url})`);
     }
   }
-  lines.push("", "## Image URLs (plain)");
-  if (!exp.imageUrls.length) lines.push("", "_None detected._");
-  else {
-    for (const u of exp.imageUrls) {
-      lines.push(`- ${u}`);
+
+  if (savedImages && savedImages.size > 0) {
+    lines.push("", "## Images (local files)");
+    for (const [url, img] of savedImages) {
+      const raw = img.filePath.split("/").pop() ?? url.split("/").pop() ?? "image";
+      const caption = fileNameToCaption(raw);
+      lines.push(`- ![${caption}](<${img.filePath}>)`);
+    }
+    const unsaved = exp.imageUrls.filter((u) => !savedImages.has(u));
+    if (unsaved.length > 0) {
+      lines.push("", "### Remaining image URLs");
+      for (const u of unsaved) lines.push(`- ${u}`);
+    }
+  } else if (embeddedImages && embeddedImages.size > 0) {
+    lines.push("", "## Images (embedded)");
+    for (const [url, img] of embeddedImages) {
+      const name = url.split("/").pop() ?? "image";
+      lines.push("", `### ${name}`, `![${name}](${img.dataUri})`);
+    }
+  } else {
+    lines.push("", "## Image URLs (plain)");
+    if (!exp.imageUrls.length) lines.push("", "_None detected._");
+    else {
+      for (const u of exp.imageUrls) {
+        lines.push(`- ${u}`);
+      }
     }
   }
-  lines.push("", "## JSON (for tools)", "", "```json", JSON.stringify(exp, null, 2), "```");
+
+  if (auth && (auth.apiToken || auth.apiKey || auth.jwtToken)) {
+    lines.push("", "## Auth context (for fetching protected resources)");
+    lines.push("", "The image and attachment URLs above require Trello authentication.");
+    lines.push("To fetch them, include the following in your requests:", "");
+    if (auth.apiKey && auth.apiToken) {
+      lines.push(`- **API key:** \`${auth.apiKey}\``);
+      lines.push(`- **API token:** \`${auth.apiToken}\``);
+      lines.push("- Append `?key={API_KEY}&token={API_TOKEN}` to Trello API URLs");
+    }
+    if (auth.jwtToken && auth.jwtHeaderName) {
+      lines.push(`- **Header:** \`${auth.jwtHeaderName}: Bearer ${auth.jwtToken}\``);
+    }
+  }
+
+  const jsonExport = { ...exp } as Record<string, unknown>;
+  if (auth?.apiToken) jsonExport._trelloApiToken = auth.apiToken;
+  if (auth?.apiKey) jsonExport._trelloApiKey = auth.apiKey;
+  if (auth?.jwtToken) jsonExport._trelloJwt = auth.jwtToken;
+  if (savedImages && savedImages.size > 0) {
+    const localImages: Record<string, string> = {};
+    for (const [url, img] of savedImages) localImages[url] = img.filePath;
+    jsonExport._localImagePaths = localImages;
+  }
+
+  lines.push("", "## JSON (for tools)", "", "```json", JSON.stringify(jsonExport, null, 2), "```");
   return lines.join("\n");
 }
